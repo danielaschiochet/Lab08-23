@@ -7,9 +7,11 @@ import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 
 import it.polito.tdp.extflightdelays.model.Airline;
 import it.polito.tdp.extflightdelays.model.Airport;
+import it.polito.tdp.extflightdelays.model.Distanza;
 import it.polito.tdp.extflightdelays.model.Flight;
 
 public class ExtFlightDelaysDAO {
@@ -80,6 +82,39 @@ public class ExtFlightDelaysDAO {
 						rs.getDouble("ELAPSED_TIME"), rs.getInt("DISTANCE"),
 						rs.getTimestamp("ARRIVAL_DATE").toLocalDateTime(), rs.getDouble("ARRIVAL_DELAY"));
 				result.add(flight);
+			}
+
+			conn.close();
+			return result;
+
+		} catch (SQLException e) {
+			e.printStackTrace();
+			System.out.println("Errore connessione al database");
+			throw new RuntimeException("Error Connection Database");
+		}
+	}
+	
+	public List<Distanza> trovaDistanza(int distanza, Map<Integer, Airport> idMap) {
+		String sql = "SELECT p, a, AVG(DISTANCE) AS d "
+				+ "FROM( "
+				+ "SELECT ORIGIN_AIRPORT_ID AS p, DESTINATION_AIRPORT_ID AS a, DISTANCE, ID "
+				+ "FROM flights "
+				+ "UNION "
+				+ "SELECT DESTINATION_AIRPORT_ID AS p, ORIGIN_AIRPORT_ID AS a, DISTANCE, ID "
+				+ "FROM flights) AS tab "
+				+ "GROUP BY p, a "
+				+ "HAVING d>?";
+		List<Distanza> result = new LinkedList<>();
+
+		try {
+			Connection conn = ConnectDB.getConnection();
+			PreparedStatement st = conn.prepareStatement(sql);
+			st.setInt(1, distanza);
+			ResultSet rs = st.executeQuery();
+
+			while (rs.next()) {
+				Distanza d = new Distanza(idMap.get(rs.getInt("p")), idMap.get(rs.getInt("a")),rs.getInt("d"));
+				result.add(d);
 			}
 
 			conn.close();
